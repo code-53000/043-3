@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Clock, Footprints } from 'lucide-react';
 import { Level, ViewMode } from './types/game';
 import { useGameLogic } from './hooks/useGameLogic';
 import { LevelSelect } from './components/LevelSelect';
@@ -7,6 +8,14 @@ import { GameGrid } from './components/GameGrid';
 import { ControlPanel } from './components/ControlPanel';
 import { CompletionModal } from './components/CompletionModal';
 import { getLevelById, getTotalLevels } from './data/levels';
+
+const formatTime = (ms: number): string => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const milliseconds = Math.floor((ms % 1000) / 100);
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds}`;
+};
 
 export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('select');
@@ -57,6 +66,25 @@ export default function App() {
               <p className="text-gray-500 text-sm">
                 {selectedLevel.gridSize}×{selectedLevel.gridSize} 网格
               </p>
+
+              <div className="mt-4 flex items-center justify-center gap-3">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <Clock className="w-4 h-4 text-primary-500" />
+                  <span className="font-mono font-bold text-gray-700 text-lg tabular-nums">
+                    {formatTime(gameLogic.elapsedMs)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <Footprints className="w-4 h-4 text-accent-500" />
+                  <span className="font-mono font-bold text-gray-700 text-lg tabular-nums">
+                    {gameLogic.moveCount + gameLogic.undoCount}
+                    <span className="text-xs text-gray-400 font-normal ml-1">
+                      ({gameLogic.moveCount}步 + {gameLogic.undoCount}撤销)
+                    </span>
+                  </span>
+                </div>
+              </div>
+
               <div className="mt-3 w-64 mx-auto h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-primary-400 to-accent-500 transition-all duration-300 ease-out"
@@ -97,6 +125,10 @@ export default function App() {
         onNextLevel={handleNextLevel}
         onBackToSelect={handleBackToSelect}
         onClose={gameLogic.closeCompletion}
+        onReplay={() => gameLogic.resetGame()}
+        lastRunStats={gameLogic.lastRunStats}
+        bestRecord={gameLogic.currentLevelRecord}
+        formatTime={formatTime}
       />
 
       <div className="mt-12 text-center text-xs text-gray-400">

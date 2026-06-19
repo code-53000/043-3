@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, ArrowRight, Home, Sparkles } from 'lucide-react';
-import { Level } from '../types/game';
+import { Trophy, ArrowRight, Home, Sparkles, Star, Clock, Footprints, RotateCcw, Crown } from 'lucide-react';
+import { Level, StarRating, LevelRecord } from '../types/game';
 import { getLevelById, getTotalLevels } from '../data/levels';
 
 interface CompletionModalProps {
@@ -10,7 +10,42 @@ interface CompletionModalProps {
   onNextLevel: () => void;
   onBackToSelect: () => void;
   onClose: () => void;
+  onReplay: () => void;
+  lastRunStats: {
+    timeMs: number;
+    stars: StarRating;
+    steps: number;
+    isNewRecord: boolean;
+  } | null;
+  bestRecord: LevelRecord | undefined;
+  formatTime: (ms: number) => string;
 }
+
+const StarDisplay: React.FC<{ rating: StarRating; size?: 'sm' | 'md' | 'lg' }> = ({ rating, size = 'md' }) => {
+  const sizeClass = size === 'lg' ? 'w-12 h-12' : size === 'md' ? 'w-8 h-8' : 'w-5 h-5';
+  const stars = [1, 2, 3];
+
+  return (
+    <div className="flex items-center justify-center gap-1">
+      {stars.map((i) => {
+        const filled = i <= rating;
+        return (
+          <motion.div
+            key={i}
+            initial={{ scale: 0, rotate: -180, opacity: 0 }}
+            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.5 + i * 0.15 }}
+          >
+            <Star
+              className={`${sizeClass} ${filled ? 'text-yellow-400 fill-yellow-400 drop-shadow-md' : 'text-gray-300 fill-gray-100'}`}
+              strokeWidth={filled ? 0 : 2}
+            />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+};
 
 export const CompletionModal: React.FC<CompletionModalProps> = ({
   isOpen,
@@ -18,6 +53,10 @@ export const CompletionModal: React.FC<CompletionModalProps> = ({
   onNextLevel,
   onBackToSelect,
   onClose,
+  onReplay,
+  lastRunStats,
+  bestRecord,
+  formatTime,
 }) => {
   const currentLevel = getLevelById(currentLevelId);
   const hasNextLevel = currentLevelId < getTotalLevels();
@@ -32,6 +71,17 @@ export const CompletionModal: React.FC<CompletionModalProps> = ({
   }));
 
   const shouldShow = isOpen && currentLevelId > 0;
+
+  const getStarTitle = (stars: StarRating): string => {
+    switch (stars) {
+      case 3:
+        return '完美通关！';
+      case 2:
+        return '表现不错！';
+      case 1:
+        return '顺利过关！';
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -74,11 +124,23 @@ export const CompletionModal: React.FC<CompletionModalProps> = ({
             className="relative bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl"
           >
             <div className="text-center">
+              {lastRunStats?.isNewRecord && (
+                <motion.div
+                  initial={{ scale: 0, y: -20, opacity: 0 }}
+                  animate={{ scale: 1, y: 0, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+                  className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 px-4 py-1.5 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full text-white font-bold text-sm shadow-lg"
+                >
+                  <Crown className="w-4 h-4" />
+                  新纪录！
+                </motion.div>
+              )}
+
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-                className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 mb-6 shadow-lg"
+                className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-primary-400 to-accent-500 mb-6 shadow-lg mt-2"
               >
                 <Trophy className="w-12 h-12 text-white" />
               </motion.div>
@@ -90,16 +152,85 @@ export const CompletionModal: React.FC<CompletionModalProps> = ({
               >
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Sparkles className="w-5 h-5 text-yellow-500" />
-                  <h2 className="text-3xl font-bold text-gray-800">恭喜通关！</h2>
+                  <h2 className="text-3xl font-bold text-gray-800">
+                    {lastRunStats ? getStarTitle(lastRunStats.stars) : '恭喜通关！'}
+                  </h2>
                   <Sparkles className="w-5 h-5 text-yellow-500" />
                 </div>
                 <p className="text-gray-500 mb-2">
                   第 {currentLevelId} 关 · {currentLevel?.name}
                 </p>
-                <p className="text-sm text-gray-400 mb-8">
+                <p className="text-sm text-gray-400 mb-4">
                   {currentLevel?.gridSize}×{currentLevel?.gridSize} 网格已全部填满
                 </p>
               </motion.div>
+
+              {lastRunStats && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="mb-6"
+                >
+                  <StarDisplay rating={lastRunStats.stars} size="lg" />
+                </motion.div>
+              )}
+
+              {lastRunStats && bestRecord && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                  className="mb-8"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                      <p className="text-xs text-gray-400 font-medium mb-2">本次成绩</p>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-primary-500" />
+                          <span className="font-mono font-bold text-gray-700 text-sm">
+                            {formatTime(lastRunStats.timeMs)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Footprints className="w-3.5 h-3.5 text-accent-500" />
+                          <span className="font-mono font-bold text-gray-700 text-sm">
+                            {lastRunStats.steps} 步
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StarDisplay rating={lastRunStats.stars} size="sm" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-4 border border-yellow-100">
+                      <p className="text-xs text-yellow-600 font-medium mb-2 flex items-center gap-1">
+                        <Crown className="w-3 h-3" />
+                        历史最佳
+                      </p>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-primary-500" />
+                          <span className="font-mono font-bold text-gray-700 text-sm">
+                            {formatTime(bestRecord.bestTimeMs)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Footprints className="w-3.5 h-3.5 text-accent-500" />
+                          <span className="font-mono font-bold text-gray-700 text-sm">
+                            {bestRecord.bestSteps} 步
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StarDisplay rating={bestRecord.bestStars} size="sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -122,6 +253,19 @@ export const CompletionModal: React.FC<CompletionModalProps> = ({
                     <ArrowRight className="w-5 h-5" />
                   </motion.button>
                 )}
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={onReplay}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 
+                             bg-gradient-to-r from-purple-500 to-pink-500 text-white 
+                             rounded-2xl font-bold shadow-lg hover:shadow-xl
+                             transition-all duration-200"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                  再玩一次
+                </motion.button>
 
                 <motion.button
                   whileHover={{ scale: 1.02 }}

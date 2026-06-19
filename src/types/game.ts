@@ -14,9 +14,19 @@ export type GameStatus = 'idle' | 'playing' | 'completed';
 
 export type ViewMode = 'select' | 'game';
 
+export type StarRating = 1 | 2 | 3;
+
+export interface LevelRecord {
+  bestTimeMs: number;
+  bestStars: StarRating;
+  bestSteps: number;
+  completedAt: number;
+}
+
 export interface PlayerProgress {
   unlockedLevel: number;
   completedLevels: number[];
+  levelRecords: Record<number, LevelRecord>;
 }
 
 export const isSamePosition = (a: Position, b: Position): boolean => {

@@ -1,13 +1,33 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Check, Grid3X3 } from 'lucide-react';
-import { Level, PlayerProgress } from '../types/game';
+import { Lock, Check, Grid3X3, Star } from 'lucide-react';
+import { Level, PlayerProgress, StarRating } from '../types/game';
 import { levels } from '../data/levels';
 
 interface LevelSelectProps {
   progress: PlayerProgress;
   onSelectLevel: (level: Level) => void;
 }
+
+const CardStars: React.FC<{ rating: StarRating | undefined }> = ({ rating }) => {
+  const stars = [1, 2, 3];
+  if (!rating) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-0.5">
+      {stars.map((i) => {
+        const filled = i <= rating;
+        return (
+          <Star
+            key={i}
+            className={`w-3 h-3 ${filled ? 'text-yellow-400 fill-yellow-400' : 'text-white/40'}`}
+            strokeWidth={filled ? 0 : 1.5}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 export const LevelSelect: React.FC<LevelSelectProps> = ({ progress, onSelectLevel }) => {
   const container = {
@@ -24,6 +44,9 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({ progress, onSelectLeve
     hidden: { opacity: 0, y: 20, scale: 0.9 },
     show: { opacity: 1, y: 0, scale: 1 },
   };
+
+  const totalStars = Object.values(progress.levelRecords).reduce((sum, r) => sum + r.bestStars, 0);
+  const maxStars = levels.length * 3;
 
   return (
     <motion.div
@@ -43,9 +66,16 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({ progress, onSelectLeve
         </motion.div>
         <h1 className="text-4xl font-bold text-gray-800 mb-2">一笔画填格子</h1>
         <p className="text-gray-500">选择关卡开始挑战</p>
-        <p className="text-sm text-gray-400 mt-2">
-          已完成 {progress.completedLevels.length} / {levels.length} 关
-        </p>
+        <div className="flex items-center justify-center gap-6 mt-2 text-sm">
+          <p className="text-gray-400">
+            已完成 {progress.completedLevels.length} / {levels.length} 关
+          </p>
+          <div className="flex items-center gap-1">
+            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" strokeWidth={0} />
+            <span className="text-gray-600 font-bold">{totalStars}</span>
+            <span className="text-gray-400">/ {maxStars}</span>
+          </div>
+        </div>
       </div>
 
       <motion.div
@@ -57,6 +87,8 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({ progress, onSelectLeve
         {levels.map((level) => {
           const isUnlocked = level.id <= progress.unlockedLevel;
           const isCompleted = progress.completedLevels.includes(level.id);
+          const levelRecord = progress.levelRecords[level.id];
+          const stars = levelRecord?.bestStars;
 
           return (
             <motion.button
@@ -68,7 +100,7 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({ progress, onSelectLeve
               disabled={!isUnlocked}
               className={`
                 relative aspect-square rounded-2xl flex flex-col items-center justify-center
-                transition-all duration-200 font-bold
+                transition-all duration-200 font-bold pb-6
                 ${isUnlocked
                   ? isCompleted
                     ? 'bg-gradient-to-br from-primary-400 to-accent-500 text-white shadow-lg cursor-pointer hover:shadow-xl'
@@ -78,8 +110,18 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({ progress, onSelectLeve
               `}
             >
               <span className="text-2xl">{level.id}</span>
-              <span className="text-xs mt-1 font-medium opacity-70">{level.name}</span>
-              <span className="text-xs opacity-50 mt-0.5">{level.gridSize}×{level.gridSize}</span>
+              <span className={`text-xs mt-1 font-medium ${isCompleted ? 'opacity-90' : 'opacity-70'}`}>
+                {level.name}
+              </span>
+              <span className={`text-xs mt-0.5 ${isCompleted ? 'opacity-80' : 'opacity-50'}`}>
+                {level.gridSize}×{level.gridSize}
+              </span>
+
+              {isCompleted && (
+                <div className="absolute bottom-1.5 left-0 right-0">
+                  <CardStars rating={stars} />
+                </div>
+              )}
 
               {isCompleted && (
                 <motion.div
